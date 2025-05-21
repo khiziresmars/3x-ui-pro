@@ -1,47 +1,76 @@
 #!/bin/bash
 #################### x-ui-pro v11.8.4 @ github.com/GFW4Fun ##############################################
 [[ $EUID -ne 0 ]] && { echo "not root!"; exec sudo "$0" "$@"; }
-msg()     { echo -e "\e[1;37;40m $1 \e[0m";}
-msg_ok()  { echo -e "\e[1;32;40m $1 \e[0m";}
-msg_err() { echo -e "\e[1;31;40m $1 \e[0m";}
-msg_inf() { echo -e "\e[1;36;40m $1 \e[0m";}
-msg_war() { echo -e "\e[1;33;40m $1 \e[0m";}
-hrline() { printf '\033[1;35;40m%s\033[0m\n' "$(printf '%*s' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "${1:--}")"; }
-echo; ############## Asciiart.eu@Cyberlarge ################
+
+######################################## Цветные сообщения ##############################################
+msg()     { echo -e "\e[1;37;40m $1 \e[0m"; }
+msg_ok()  { echo -e "\e[1;32;40m $1 \e[0m"; }
+msg_err() { echo -e "\e[1;31;40m $1 \e[0m"; }
+msg_inf() { echo -e "\e[1;36;40m $1 \e[0m"; }
+msg_war() { echo -e "\e[1;33;40m $1 \e[0m"; }
+hrline()  { printf '\033[1;35;40m%s\033[0m\n' "$(printf '%*s' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "${1:--}")"; }
+
+######################################## Шапка ##########################################################
+echo
 msg_inf ' _     _ _     _ _____      _____   ______   _____ '
 msg_inf '  \___/  |     |   |   ___ |_____] |_____/  |     |'
-msg_inf ' _/   \_ |_____| __|__     |       |     \_ |_____|';
+msg_inf ' _/   \_ |_____| __|__     |       |     \_ |_____|'
 hrline
-##################################Random Port and Path ###################################################
-mkdir -p ${HOME}/.cache
-Pak=$(command -v apt||echo dnf);
-RNDSTR=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)");
-RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)");
-while true; do PORT=$((RANDOM%30000+30000)); nc -z 127.0.0.1 "$PORT" &>/dev/null || break; done
-Random_country=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
-TorRandomCountry=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
-##################################Variables###############################################################
-XUIDB="/etc/x-ui/x-ui.db";domain="";UNINSTALL="x";PNLNUM=1;CFALLOW="off";NOPATH="";RNDTMPL="n";CLIMIT="#"
-WarpCfonCountry="";WarpLicKey="";CleanKeyCfon="";TorCountry="";Secure="no";ENABLEUFW="";VERSION="last";CountryAllow="XX"
-################################Get arguments#############################################################
+
+######################################## Cлучайности / константы #######################################
+mkdir -p "${HOME}/.cache"
+Pak=$(command -v apt || echo dnf)
+
+# ---- Панель X-UI (Глобальные значения, используемые для обновления БД) ----
+RNDSTR="/esmars"            #  <-- фиксированная точка входа панели (без слеша в конце, add_slashes добавит)
+RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)") #  второй путь (для v2rayA)
+# ---- Порт панели (Генерируется случайно, используется для обновления БД) ----
+while true; do
+  Current_Generated_PORT=$((RANDOM%30000 + 30000)); nc -z 127.0.0.1 "$Current_Generated_PORT" &>/dev/null || break
+done
+PORT=${Current_Generated_PORT} # Используем это значение для UPDATE_XUIDB
+
+######################################## Переменные скрипта ############################################
+XUIDB="/etc/x-ui/x-ui.db"
+domain=""
+UNINSTALL="x"
+PNLNUM=1
+CFALLOW="off"
+NOPATH=""
+RNDTMPL="n"
+CLIMIT="#"
+WarpCfonCountry=""
+WarpLicKey=""
+CleanKeyCfon=""
+TorCountry=""
+Secure="no"
+ENABLEUFW=""
+VERSION="last"
+CountryAllow="XX"
+Random_country=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1) # Из оригинального скрипта
+TorRandomCountry=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1) # Из оригинального скрипта
+
+
+######################################## Аргументы CLI #################################################
 while [ "$#" -gt 0 ]; do
   case "$1" in
-  	-country) CountryAllow="$2"; shift 2;;
-  	-xuiver) VERSION="$2"; shift 2;;
-  	-ufw) ENABLEUFW="$2"; shift 2;;
-	-secure) Secure="$2"; shift 2;;
-	-TorCountry) TorCountry="$2"; shift 2;;
-	-WarpCfonCountry) WarpCfonCountry="$2"; shift 2;;
-	-WarpLicKey) WarpLicKey="$2"; shift 2;;
-	-CleanKeyCfon) CleanKeyCfon="$2"; shift 2;;
-	-RandomTemplate) RNDTMPL="$2"; shift 2;;
-	-Uninstall) UNINSTALL="$2"; shift 2;;
-	-panel) PNLNUM="$2"; shift 2;;
-	-subdomain) domain="$2"; shift 2;;
-	-cdn) CFALLOW="$2"; shift 2;;
-    *) shift 1;;
+    -country)             CountryAllow="$2"; shift 2 ;;
+    -xuiver)              VERSION="$2"; shift 2 ;;
+    -ufw)                 ENABLEUFW="$2"; shift 2 ;;
+    -secure)              Secure="$2"; shift 2 ;;
+    -TorCountry)          TorCountry="$2"; shift 2 ;;
+    -WarpCfonCountry)     WarpCfonCountry="$2"; shift 2 ;;
+    -WarpLicKey)          WarpLicKey="$2"; shift 2 ;;
+    -CleanKeyCfon)        CleanKeyCfon="$2"; shift 2 ;;
+    -RandomTemplate)      RNDTMPL="$2"; shift 2 ;;
+    -Uninstall)           UNINSTALL="$2"; shift 2 ;;
+    -panel)               PNLNUM="$2"; shift 2 ;;
+    -subdomain)           domain="$2"; shift 2 ;;
+    -cdn)                 CFALLOW="$2"; shift 2 ;;
+    *)                    shift 1 ;;
   esac
 done
+
 #############################################################################################################
 service_enable() {
 for service_name in "$@"; do
@@ -103,7 +132,7 @@ WantedBy=multi-user.target
 EOF
 ######
 rm -rf ~/.cache/warp-plus
-service_enable "warp-plus"; 
+service_enable "warp-plus";
 msg "\nEnter after 10 seconds:\ncurl --socks5-hostname 127.0.0.1:8086 https://ipapi.co/json/\n"
 msg_inf "warp-plus settings changed!"
 exit 1
@@ -141,11 +170,11 @@ if [[ "${UNINSTALL}" == *"y"* ]]; then
 		systemctl disable "$service" > /dev/null 2>&1
 	done
 	#bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge
- 	printf 'n' | bash <(wget -qO- https://github.com/v2rayA/v2rayA-installer/raw/main/uninstaller.sh) 
+ 	printf 'n' | bash <(wget -qO- https://github.com/v2rayA/v2rayA-installer/raw/main/uninstaller.sh)
  	rm -rf /etc/warp-plus/ /etc/nginx/sites-enabled/*
-	crontab -l | grep -v "nginx\|systemctl\|x-ui\|v2ray" | crontab -	
+	crontab -l | grep -v "nginx\|systemctl\|x-ui\|v2ray" | crontab -
 	command -v x-ui &> /dev/null && printf 'y\n' | x-ui uninstall
-	
+
 	clear && msg_ok "Completely Uninstalled!" && exit 1
 fi
 ##############################Domain Validations#########################################################
@@ -167,12 +196,12 @@ for pkg in epel-release cronie psmisc unzip curl nginx nginx-full certbot python
 done
 service_enable "nginx" "tor" "cron" "crond"
 ############################### Get nginx Ver and Stop ##################################################
-vercompare() { 
+vercompare() {
 	if [ "$1" = "$2" ]; then echo "E"; return; fi
     [ "$(printf "%s\n%s" "$1" "$2" | sort -V | head -n1)" = "$1" ] && echo "L" || echo "G";
 }
 nginx_ver=$(nginx -v 2>&1 | awk -F/ '{print $2}');
-ver_compare=$(vercompare "$nginx_ver" "1.25.1"); 
+ver_compare=$(vercompare "$nginx_ver" "1.25.1");
 if [ "$ver_compare" = "L" ]; then
 	 OLD_H2=" http2";NEW_H2="#";
 else OLD_H2="";NEW_H2="";
@@ -245,27 +274,99 @@ sudo bash "/etc/nginx/cloudflareips.sh" > /dev/null 2>&1;
 [[ "${Secure}" == *"yes"* ]] && Secure="" || Secure="#"
 ######################################## add_slashes /webBasePath/ #####################################
 add_slashes() {
-    [[ "$1" =~ ^/ ]] || set -- "/$1" ; [[ "$1" =~ /$ ]] || set -- "$1/"
-    echo "$1"
+    local path_to_slash="$1"
+    [[ "$path_to_slash" =~ ^/ ]] || path_to_slash="/$path_to_slash"
+    [[ "$path_to_slash" =~ /$ ]] || path_to_slash="$path_to_slash/"
+    echo "$path_to_slash"
 }
 ########################################Update X-UI Port/Path for first INSTALL#########################
+# RNDSTR (path) and PORT are global variables defined at the start of the script.
+# RNDSTR is e.g. "/esmars" (fixed), PORT is random for this run.
+# UPDATE_XUIDB uses these global variables to update the database.
 UPDATE_XUIDB(){
 if [[ -f $XUIDB ]]; then
-x-ui stop > /dev/null 2>&1
-fuser "$XUIDB" 2>/dev/null
-RNDSTRSLASH=$(add_slashes "$RNDSTR")
-sqlite3 "$XUIDB" << EOF
+    x-ui stop > /dev/null 2>&1
+    fuser -k "$XUIDB" 2>/dev/null # Use -k to kill processes using the file
+    local RNDSTRSLASH # Local variable for slashed path
+    RNDSTRSLASH=$(add_slashes "$RNDSTR") # Uses global RNDSTR (e.g. "/esmars" -> "/esmars/")
+    sqlite3 "$XUIDB" << EOF
 	DELETE FROM 'settings' WHERE key IN ('webPort', 'webCertFile', 'webKeyFile', 'webBasePath');
 	INSERT INTO 'settings' (key, value) VALUES ('webPort', '${PORT}'),('webCertFile', ''),('webKeyFile', ''),('webBasePath', '${RNDSTRSLASH}');
 EOF
 fi
 }
+
+########################################### НОВАЯ ФУНКЦИЯ ###############################################
+update_ui_credentials() {
+  # username = esmarsme, password = EsmarsMe13AMS1
+  local user_row_count
+  user_row_count=$(sqlite3 "$XUIDB" "SELECT COUNT(id) FROM users;" 2>/dev/null)
+
+  if [[ "$user_row_count" -eq 0 ]]; then
+    # No users, insert the new one
+    sqlite3 "$XUIDB" "INSERT INTO users (username, password,permission) VALUES ('esmarsme', 'EsmarsMe13AMS1','');"
+    msg_inf "Created new user: esmarsme"
+  elif [[ "$user_row_count" -ge 1 ]]; then
+    # Update the first user (ORDER BY id LIMIT 1 implies this)
+    sqlite3 "$XUIDB" "UPDATE users SET username='esmarsme', password='EsmarsMe13AMS1' WHERE id = (SELECT id FROM users ORDER BY id LIMIT 1);"
+    msg_inf "Updated existing user to: esmarsme"
+  else
+    msg_err "Could not determine user to update/create."
+  fi
+}
+
+########################################### НОВАЯ ФУНКЦИЯ ###############################################
+create_default_inbounds() {
+  # Проверяем, если там уже есть хоть один inbound — выходим.
+  local has_inbounds
+  has_inbounds=$(sqlite3 "$XUIDB" "SELECT COUNT(*) FROM inbounds;" 2>/dev/null)
+  if [[ "$has_inbounds" -ne 0 ]]; then # Ensure it's exactly 0, not just non-gt-0
+    msg_inf "Inbounds already exist, skipping creation of default inbounds."
+    return
+  fi
+
+  msg_inf "No inbounds found, creating default set..."
+  # Генерация значений
+  UUID_VLESS=$(cat /proc/sys/kernel/random/uuid)
+  TROJAN_PWD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)
+  SS_PWD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)
+
+  # Порты внутрь (за nginx) – можно менять при желании
+  PORT_VL=30001
+  PORT_TR=30002
+  PORT_SS=30003
+
+  sqlite3 "$XUIDB" <<EOF
+INSERT INTO inbounds
+(enable, remark, listen, port, protocol, settings, stream_settings, sniffing, client_stats, up, down, total, expiry_time, client_ip_limit)
+VALUES
+-- VLESS WS
+(1, 'auto-vless', NULL, $PORT_VL, 'vless',
+ '{"clients":[{"id":"$UUID_VLESS","email":"auto@vless"}],"decryption":"none","fallbacks":[]}',
+ '{"network":"ws","security":"none","wsSettings":{"path":"/vless"}}',
+ '{"enabled":true,"destOverride":["http","tls","quic"]}', '[]',0,0,0,0,0),
+
+-- TROJAN WS
+(1, 'auto-trojan', NULL, $PORT_TR, 'trojan',
+ '{"clients":[{"password":"$TROJAN_PWD","email":"auto@trojan"}]}',
+ '{"network":"ws","security":"none","wsSettings":{"path":"/trojan"}}',
+ '{"enabled":true,"destOverride":["http","tls","quic"]}', '[]',0,0,0,0,0),
+
+-- SHADOWSOCKS TCP
+(1, 'auto-ss', NULL, $PORT_SS, 'shadowsocks',
+ '{"method":"chacha20-ietf-poly1305","password":"$SS_PWD","network":"tcp,udp","level":0,"ivCheck":true}',
+ '{}',
+ '{"enabled":true,"destOverride":["http","tls","quic"]}', '[]',0,0,0,0,0);
+EOF
+  msg_ok "Default inbounds (VLESS, Trojan, SS) created successfully."
+}
+
 ###################################Install X-UI#########################################################
 if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
-	[[ "$PNLNUM" =~ ^[0-3]+$ ]] || PNLNUM=1	
+	[[ "$PNLNUM" =~ ^[0-3]+$ ]] || PNLNUM=1
  	VERSION=$(echo "$VERSION" | tr -d '[:space:]')
 	if [[ -z "$VERSION" || "$VERSION" != *.* ]]; then VERSION="master"
-	else [[ $PNLNUM == "1" ]] && VERSION="v${VERSION#v}" || VERSION="${VERSION#v}" ; fi	
+	else [[ $PNLNUM == "1" ]] && VERSION="v${VERSION#v}" || VERSION="${VERSION#v}" ; fi
 	PANEL=( "https://raw.githubusercontent.com/alireza0/x-ui/${VERSION}/install.sh"
 		"https://raw.githubusercontent.com/mhsanaei/3x-ui/${VERSION}/install.sh"
 		"https://raw.githubusercontent.com/FranzKafkaYu/x-ui/${VERSION}/install_en.sh"
@@ -273,26 +374,55 @@ if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
 	);
 	[[ "$VERSION" == "master" ]] && VERSION=""
 	printf 'n\n' | bash <(wget -qO- "${PANEL[$PNLNUM]}") "$VERSION" ||  { printf 'n\n' | bash <(curl -Ls "${PANEL[$PNLNUM]}") "$VERSION"; }
-	service_enable "x-ui"
- 	UPDATE_XUIDB
+	service_enable "x-ui" # This enables and starts x-ui
+    # UPDATE_XUIDB and other modifications will happen in the next block
 fi
-###################################Get Installed XUI Port/Path##########################################
+
+###################################Process X-UI Database (Update/Setttings/Credentials)#######################
 if [[ -f $XUIDB ]]; then
-	x-ui stop > /dev/null 2>&1
- 	fuser "$XUIDB" 2>/dev/null
-	PORT=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;" 2>&1)
- 	RNDSTR=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;" 2>&1)	
-	XUIUSER=$(sqlite3 "${XUIDB}" 'SELECT "username" FROM users;' 2>&1)
-	XUIPASS=$(sqlite3 "${XUIDB}" 'SELECT "password" FROM users;' 2>&1)
-	RNDSTR=$(add_slashes "$RNDSTR" | tr -d '[:space:]')
-	[[ "$RNDSTR" == "/" ]] && NOPATH="#"
+	x-ui stop > /dev/null 2>&1 # Ensure x-ui is stopped for DB operations
+	fuser -k "$XUIDB" 2>/dev/null
+
+	UPDATE_XUIDB          # Uses global RNDSTR="/esmars" and global random PORT to set DB.
+	update_ui_credentials # Sets fixed username/password.
+	create_default_inbounds # Adds default inbounds if none exist.
+
+    # Read back the PORT and RNDSTR from the database that were just set/updated.
+    # This ensures the script uses the actual values from DB for Nginx and display.
+    # Note: The global variable 'PORT' defined at the start holds the value used by UPDATE_XUIDB.
+    # The global variable 'RNDSTR' (e.g. "/esmars") is used by UPDATE_XUIDB (after add_slashes).
+    # Here we re-assign script's PORT and RNDSTR vars with values from DB to confirm.
+
+    PORT_FROM_DB=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;" 2>&1)
+    RNDSTR_FROM_DB=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;" 2>&1)
+
+    # Update script's PORT and RNDSTR variables for Nginx config and display.
+    PORT="$PORT_FROM_DB"
+    RNDSTR=$(add_slashes "$RNDSTR_FROM_DB" | tr -d '[:space:]') # Ensure it's like /path/
+
+	XUIUSER=$(sqlite3 "${XUIDB}" 'SELECT "username" FROM users ORDER BY id LIMIT 1;' 2>&1) # Should be 'esmarsme'
+	XUIPASS=$(sqlite3 "${XUIDB}" 'SELECT "password" FROM users ORDER BY id LIMIT 1;' 2>&1) # Should be 'EsmarsMe13AMS1' (but we show it as a var)
+
+	if [[ "$RNDSTR" == "/" ]]; then
+        NOPATH="#"
+    else
+        NOPATH="" # RNDSTR is not "/", so NOPATH is empty
+    fi
+
 	if [[ -z "${PORT}" ]] || ! [[ "${PORT}" =~ ^-?[0-9]+$ ]]; then
-		PORT="2053"
+		PORT="2053" # Fallback, though UPDATE_XUIDB should have set it.
   	fi
+    # x-ui will be started later by service_enable or systemctl start nginx sequence
 else
-	PORT="2053"
-	RNDSTR="/";NOPATH="#";
-	XUIUSER="admin";XUIPASS="admin";
+    # XUIDB not found, even after potential install attempt.
+    msg_err "x-ui.db not found. X-UI installation may have failed."
+    msg_war "Using default fallback settings for display/Nginx config, but panel may not be functional."
+	# PORT remains the initially generated random port
+	# RNDSTR remains the initial "/esmars", format it with slashes for nginx.
+    RNDSTR=$(add_slashes "$RNDSTR" | tr -d '[:space:]')
+	XUIUSER="esmarsme" # Intended username
+    XUIPASS="EsmarsMe13AMS1" # Intended password
+    if [[ "$RNDSTR" == "/" ]]; then NOPATH="#"; else NOPATH=""; fi
 fi
 #######################################################################################################
 CountryAllow=$(echo "$CountryAllow" | tr ',' '|' | tr -cd 'A-Za-z|' | awk '{print toupper($0)}')
@@ -300,6 +430,8 @@ if echo "$CountryAllow" | grep -Eq '^[A-Z]{2}(\|[A-Z]{2})*$'; then
 	CLIMIT=$( [[ "$CountryAllow" == "XX" ]] && echo "#" || echo "" )
 fi
 #################################Nginx Config###########################################################
+# $RNDSTR here should be the path read from DB (e.g., /esmars/)
+# $RNDSTR2 is the random path for v2rayA
 cat > "/etc/nginx/sites-available/$MainDomain" << EOF
 server {
 	server_tokens off;
@@ -319,10 +451,10 @@ server {
 	if (\$scheme ~* https) {set \$safe 1;}
 	if (\$ssl_server_name !~* ^(.+\.)?$MainDomain\$ ) {set \$safe "\${safe}0"; }
 	if (\$safe = 10){return 444;}
-	if (\$request_uri ~ "(\"|'|\`|~|,|:|--|;|%|\\$|&&|\?\?|0x00|0X00|\||\\|\{|\}|\[|\]|<|>|\.\.\.|\.\.\/|\/\/\/)"){set \$hack 1;}
+	if (\$request_uri ~ "(\\"|'|\`|~|,|:|--|;|%|\\$|&&|\\?\\?|0x00|0X00|\\||\\\\|\\{|\\}|\\[|\\]|<|>|\\.\\.\\.|\\.\\.\\/|\\/\\/\\/)"){set \$hack 1;}
 	error_page 400 402 403 500 501 502 503 504 =404 /404;
 	proxy_intercept_errors on;
-	#X-UI Admin Panel
+	#X-UI Admin Panel (path from RNDSTR, e.g. /esmars/)
 	location $RNDSTR {
 		${Secure}auth_basic "Restricted Access";
 		${Secure}auth_basic_user_file /etc/nginx/.htpasswd;
@@ -330,17 +462,17 @@ server {
 		proxy_set_header Host \$host;
 		proxy_set_header X-Real-IP \$remote_addr;
 		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-		proxy_pass http://127.0.0.1:$PORT;
+		proxy_pass http://127.0.0.1:$PORT; # PORT is the panel port from DB
 		break;
 	}
-	#v2ray-ui
+	#v2ray-ui (path from RNDSTR2, e.g. /randompath/)
 	location /${RNDSTR2}/ {
 		${Secure}auth_basic "Restricted Access";
 		${Secure}auth_basic_user_file /etc/nginx/.htpasswd;
 		proxy_set_header Host \$host;
 		proxy_set_header X-Real-IP \$remote_addr;
 		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-		proxy_pass http://127.0.0.1:2017/;
+		proxy_pass http://127.0.0.1:2017/; # Standard v2rayA port
 		break;
 	}
 	#Subscription Path (simple/encode)
@@ -402,8 +534,8 @@ if ! systemctl start nginx > /dev/null 2>&1 || ! nginx -t &>/dev/null || nginx -
 	nginx -c /etc/nginx/nginx.conf
 	nginx -s reload
 fi
-systemctl is-enabled x-ui || sudo systemctl enable x-ui
-x-ui start > /dev/null 2>&1
+systemctl is-enabled x-ui || sudo systemctl enable x-ui # Ensure x-ui is enabled
+x-ui start > /dev/null 2>&1 # Ensure x-ui is started after all DB/Nginx changes
 ############################################Warp Plus (MOD)#############################################
 systemctl stop warp-plus > /dev/null 2>&1
 rm -rf ~/.cache/warp-plus /etc/warp-plus/
@@ -422,10 +554,10 @@ case "$(uname -m | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
 	mipsle*) wppDL="${warpPlusDL}-mipsle.zip" ;;
 	riscv*) wppDL="${warpPlusDL}-riscv64.zip" ;;
 	*) wppDL="${warpPlusDL}-amd64.zip" ;;
-esac  
+esac
 
-wget --quiet -P /etc/warp-plus/ "${wppDL}" || curl --output-dir /etc/warp-plus/ -LOs "${wppDL}" 
-find "/etc/warp-plus/" -name '*.zip' | xargs -I {} sh -c 'unzip -d "$0" "{}" && rm -f "{}"' "/etc/warp-plus/"
+wget --quiet -P /etc/warp-plus/ "${wppDL}" || curl --output-dir /etc/warp-plus/ -LOs "${wppDL}"
+find "/etc/warp-plus/" -name '*.zip' | xargs -I {} sh -c 'unzip -o -d "$0" "{}" && rm -f "{}"' "/etc/warp-plus/" # Added -o to overwrite
 cat > /etc/systemd/system/warp-plus.service << EOF
 [Unit]
 Description=warp-plus service
@@ -442,8 +574,8 @@ Restart=on-abort
 WantedBy=multi-user.target
 EOF
 ##########################################Install v2ray-core + v2rayA-webui#############################
-#bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-sudo sh -c "$(wget -qO- https://github.com/v2rayA/v2rayA-installer/raw/main/installer.sh)" @ --with-xray
+#bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install # Original commented this out if v2rayA provides it
+sudo sh -c "$(wget -qO- https://github.com/v2rayA/v2rayA-installer/raw/main/installer.sh)" @install --with-xray # Fixed typo @ --with-xray to @install --with-xray
 service_enable "v2raya" "warp-plus"
 ######################cronjob for ssl/reload service/cloudflareips######################################
 tasks=(
@@ -458,31 +590,45 @@ crontab -l | grep -qE "x-ui" || { printf "%s\n" "${tasks[@]}" | crontab -; }
 if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then clear
 	printf '0\n' | x-ui | grep --color=never -i ':' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
 	hrline
- 	nginx -T | grep -i 'configuration file /etc/nginx/sites-enabled/'  | sed 's/.*configuration file //'  | tr -d ':' | awk '{print "\033[1;32;40m" $0 "\033[0m"}'
+ 	nginx -T 2>/dev/null | grep -i 'configuration file /etc/nginx/sites-enabled/'  | sed 's/.*configuration file //'  | tr -d ':' | awk '{print "\033[1;32;40m" $0 "\033[0m"}'
 	hrline
-	certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
+	certbot certificates 2>/dev/null | grep -i 'Path:\|Domains:\|Expiry Date:' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
 	hrline
 	IPInfo=$(curl -Ls "https://ipapi.co/json" || curl -Ls "https://ipinfo.io/json")
  	OS=$(grep -E '^(NAME|VERSION)=' /etc/*release 2>/dev/null | awk -F= '{printf $2 " "}' | xargs)
-	msg "ID: $(cat /etc/machine-id | cksum | awk '{print $1 % 65536}') | IP: ${IP4} | OS: ${OS}"
-	msg "Hostname: $(uname -n) | $(echo "${IPInfo}" | jq -r '.org, .country' | paste -sd' | ')"
+	msg "ID: $(cat /etc/machine-id 2>/dev/null | cksum | awk '{print $1 % 65536}') | IP: ${IP4} | OS: ${OS}"
+	msg "Hostname: $(uname -n) | $(echo "${IPInfo}" | jq -r '.org, .country_name' | paste -sd' | ')" # Used country_name
  	printf "\033[1;37;40m CPU: %s/%s Core | RAM: %s | SSD: %s Gi\033[0m\n" \
-	"$(arch)" "$(nproc)" "$(free -h | awk '/^Mem:/{print $2}')" "$(df / | awk 'NR==2 {print $2 / 1024 / 1024}')"
+	"$(arch)" "$(nproc)" "$(free -h | awk '/^Mem:/{print $2}')" "$( LC_ALL=C df / | awk 'NR==2 {printf "%.0f", $2 / 1024 / 1024}')" # Ensure consistent df output
 	hrline
   	msg_err  "XrayUI Panel [IP:PORT/PATH]"
+    # $PORT and $RNDSTR here are the values read back from DB or fallbacks
 	[[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:$PORT$RNDSTR"
 	[[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:$PORT$RNDSTR"
  	msg_err "\n V2rayA Panel [IP:PORT]"
   	[[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:2017/"
 	[[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:2017/"
 	hrline
-	sudo sh -c "echo -n '${XUIUSER}:' >> /etc/nginx/.htpasswd && openssl passwd -apr1 '${XUIPASS}' >> /etc/nginx/.htpasswd"
+    # Create/Update .htpasswd for Nginx Basic Auth if Secure=yes
+    if [[ "${Secure}" == "" ]]; then # Secure is empty if -secure yes
+        rm -f /etc/nginx/.htpasswd # Remove old file to ensure single entry
+        if command -v htpasswd &>/dev/null; then
+            htpasswd -bcs /etc/nginx/.htpasswd "$XUIUSER" "$XUIPASS" # Use htpasswd if available
+        else
+            # Fallback to openssl passwd if htpasswd not found (less ideal for managing multiple users but ok for one)
+            echo -n "${XUIUSER}:" > /etc/nginx/.htpasswd
+            openssl passwd -apr1 "${XUIPASS}" >> /etc/nginx/.htpasswd
+        fi
+        chown "$nginxusr:$nginxusr" /etc/nginx/.htpasswd
+        chmod 600 /etc/nginx/.htpasswd
+    fi
  	msg_ok "Admin Panel [SSL]:\n"
+    # $domain is the user-provided domain, $RNDSTR is path from DB (e.g. /esmars/), $RNDSTR2 is random for v2rayA
 	msg_inf "XrayUI: https://${domain}${RNDSTR}"
 	msg_inf "V2rayA: https://${domain}/${RNDSTR2}/\n"
-	msg "Username: $XUIUSER\n Password: $XUIPASS"
+	msg "Username: $XUIUSER\n Password: $XUIPASS" # These are from DB now: esmarsme/EsmarsMe13AMS1
 	hrline
-	msg_war "Note: Save This Screen!"	
+	msg_war "Note: Save This Screen!"
 else
 	nginx -t && printf '0\n' | x-ui | grep --color=never -i ':'
 	msg_err "XUI-PRO : Installation error..."
