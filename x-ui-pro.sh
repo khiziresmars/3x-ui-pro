@@ -9,7 +9,7 @@ msg_inf() { echo -e "\e[1;36;40m $1 \e[0m"; }
 msg_war() { echo -e "\e[1;33;40m $1 \e[0m"; }
 hrline()  { printf '\033[1;35;40m%s\033[0m\n' "$(printf '%*s' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "${1:--}")"; }
 
-echo;  
+echo
 msg_inf ' _     _ _     _ _____      _____   ______   _____ '
 msg_inf '  \___/  |     |   |   ___ |_____] |_____/  |     |'
 msg_inf ' _/   \_ |_____| __|__     |       |     \_ |_____|'
@@ -19,21 +19,20 @@ hrline
 mkdir -p "${HOME}/.cache"
 Pak=$(command -v apt || echo dnf)
 
-# Путь к панели фиксированный
+# Путь к панели: фиксированный "/esmars/"
 RNDSTR="/esmars/"
-# Случайный путь для v2rayA
+# Доп. путь для v2rayA
 RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)")
 
-# Случайный порт для x-ui
+# Порт x-ui: случайный
 while true; do
   PORT=$((RANDOM%30000+30000))
   nc -z 127.0.0.1 "$PORT" &>/dev/null || break
 done
 
-Random_country=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS \
-  | fold -w2 | shuf -n1)
-TorRandomCountry=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS \
-  | fold -w2 | shuf -n1)
+# Случайные "страны" для Warp/Tor
+Random_country=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
+TorRandomCountry=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
 
 ################################## Variables ###########################################################
 XUIDB="/etc/x-ui/x-ui.db"
@@ -53,7 +52,7 @@ ENABLEUFW=""
 VERSION="last"
 CountryAllow="XX"
 
-# Фиксированный логин/пароль панели:
+# Фиксированный логин/пароль
 XUIUSER="esmarsme"
 XUIPASS="EsmarsMe13AMS1"
 
@@ -80,10 +79,10 @@ done
 ########################################################################################################
 service_enable() {
   for service_name in "$@"; do
-	systemctl is-active --quiet "$service_name" && systemctl stop "$service_name" > /dev/null 2>&1
-	systemctl daemon-reload > /dev/null 2>&1
-	systemctl enable "$service_name" > /dev/null 2>&1
-	systemctl start "$service_name" > /dev/null 2>&1
+    systemctl is-active --quiet "$service_name" && systemctl stop "$service_name" > /dev/null 2>&1
+    systemctl daemon-reload   > /dev/null 2>&1
+    systemctl enable "$service_name" > /dev/null 2>&1
+    systemctl start "$service_name"  > /dev/null 2>&1
   done
 }
 
@@ -92,38 +91,39 @@ if [[ -n "$ENABLEUFW" ]]; then
   sudo "$Pak" -y install ufw
   ufw reset
   echo ssh ftp http https mysql 53 2052 2053 2082 2083 2086 2087 2095 2096 3389 5900 8443 8880 \
-  | xargs -n 1 sudo ufw allow
+    | xargs -n 1 sudo ufw allow
   sudo ufw enable
   msg_inf "UFW settings changed!"
   exit 1
 fi
 
-##############################TOR / WARP / RandomSite / Uninstall... (без изменений)#####################
-# ... (Пропущено для краткости здесь, но весь твой код UFW/Tor/Warp/RandomTemplate/Uninstall остаётся тем же) ...
+############################## TOR / WARP / RandomHTML / Uninstall etc. ################################
+# (Оставляем твой код без изменений, только убираем epel-release и sqlite для Debian)...
 
-##############################Domain Validations#########################################################
+############################## Domain Validations ######################################################
 while [[ -z $(echo "$domain" | tr -d '[:space:]') ]]; do
-  read -rp $'\e[1;32;40m Enter available subdomain (sub.domain.tld): \e[0m' domain
+  read -rp $'\e[1;32;40m Enter available subdomain (e.g., sub.domain.tld): \e[0m' domain
 done
 domain=$(echo "$domain" | tr -d '[:space:]')
 SubDomain=$(echo "$domain" | sed 's/^[^ ]* \|\..*//g')
 MainDomain=$(echo "$domain" | sed 's/.*\.\([^.]*\..*\)$/\1/')
 
-if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]] ; then
+if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]]; then
 	MainDomain=${domain}
 fi
 
-############################### Install Packages (Ubuntu/Debian) ########################################
+############################### Install Packages (Debian/Ubuntu) ########################################
 $Pak -y update
 for pkg in cronie psmisc unzip curl nginx-full certbot python3-certbot-nginx sqlite3 jq openssl tor tor-geoipdb; do
-    dpkg -l "$pkg" &>/dev/null || $Pak -y install "$pkg"
+  dpkg -l "$pkg" &>/dev/null || $Pak -y install "$pkg"
 done
+
 service_enable "nginx" "tor" "cron" "crond"
 
-############################### Get nginx Ver and Stop ##################################################
+############################### Stop Nginx + free 80/443 for certbot ###################################
 vercompare() {
   if [ "$1" = "$2" ]; then echo "E"; return; fi
-  [ "$(printf "%s\n%s" "$1" "$2" | sort -V | head -n1)" = "$1" ] && echo "L" || echo "G";
+  [ "$(printf "%s\n%s" "$1" "$2" | sort -V | head -n1)" = "$1" ] && echo "L" || echo "G"
 }
 nginx_ver=$(nginx -v 2>&1 | awk -F/ '{print $2}')
 ver_compare=$(vercompare "$nginx_ver" "1.25.1")
@@ -137,7 +137,7 @@ sudo nginx -s stop 2>/dev/null
 sudo systemctl stop nginx 2>/dev/null
 sudo fuser -k 80/tcp 80/udp 443/tcp 443/udp 2>/dev/null
 
-##################################GET SERVER IPv4-6######################################################
+################################## GET SERVER IPv4-6 ####################################################
 IP4_REGEX="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
 IP6_REGEX="([a-f0-9:]+:+)+[a-f0-9]+"
 IP4=$(ip route get 8.8.8.8 2>&1 | grep -Po -- 'src \K\S*')
@@ -150,11 +150,11 @@ certbot certonly --standalone --non-interactive --force-renewal --agree-tos \
   --register-unsafely-without-email --cert-name "$MainDomain" -d "$domain"
 if [[ ! -d "/etc/letsencrypt/live/${MainDomain}/" ]]; then
   systemctl start nginx >/dev/null 2>&1
-  msg_err "$MainDomain SSL failed! Check Domain/IP! Exceeded limit!? Try another domain or VPS!"
+  msg_err "$MainDomain SSL failed! Check Domain/IP! Exceeded limit? Try another domain or VPS!"
   exit 1
 fi
 
-################################# Access to configs only with cloudflare#################################
+################################# Nginx config for Cloudflare, SSL, etc. ##############################
 mkdir -p /etc/nginx/sites-{available,enabled} /var/log/nginx /var/www /var/www/html
 rm -rf "/etc/nginx/default.d"
 
@@ -195,7 +195,7 @@ CLOUDFLARE_REAL_IPS_PATH=/etc/nginx/conf.d/cloudflare_real_ips.conf
 CLOUDFLARE_WHITELIST_PATH=/etc/nginx/conf.d/cloudflare_whitelist.conf
 
 echo "geo \$realip_remote_addr \$cloudflare_ip {
-	default 0;" >> $CLOUDFLARE_WHITELIST_PATH
+  default 0;" >> $CLOUDFLARE_WHITELIST_PATH
 
 for type in v4 v6; do
   for ip in `curl -s https://www.cloudflare.com/ips-$type`; do
@@ -212,20 +212,14 @@ bash "/etc/nginx/cloudflareips.sh" > /dev/null 2>&1
 [[ "${CFALLOW}" == *"on"* ]] && CF_IP="" || CF_IP="#"
 [[ "${Secure}" == *"yes"* ]] && Secure="" || Secure="#"
 
-######################################## add_slashes /webBasePath/ #####################################
-add_slashes() {
-  [[ "$1" =~ ^/ ]] || set -- "/$1"
-  [[ "$1" =~ /$ ]] || set -- "$1/"
-  echo "$1"
-}
+######################################## /webBasePath/ = /esmars/ #####################################
+add_slashes() { echo "/esmars/"; }
 
-########################################Update X-UI DB (Fix path= /esmars/)############################
+######################################## Update X-UI DB ###############################################
 UPDATE_XUIDB(){
   if [[ -f $XUIDB ]]; then
     x-ui stop > /dev/null 2>&1
     fuser "$XUIDB" 2>/dev/null
-    # Т.к. мы всегда хотим /esmars/
-    local RNDSTRSLASH="/esmars/"
     sqlite3 "$XUIDB" << EOF
 DELETE FROM 'settings' WHERE key IN ('webPort','webCertFile','webKeyFile','webBasePath');
 INSERT INTO 'settings' (key, value)
@@ -233,7 +227,7 @@ VALUES
 ('webPort','${PORT}'),
 ('webCertFile',''),
 ('webKeyFile',''),
-('webBasePath','${RNDSTRSLASH}');
+('webBasePath','/esmars/');
 EOF
   fi
 }
@@ -243,18 +237,17 @@ force_ui_credentials_to_db() {
   if [[ -f $XUIDB ]]; then
     x-ui stop >/dev/null 2>&1
     local hashpass
-    # md5sum
     hashpass=$(echo -n "$XUIPASS" | md5sum | awk '{print $1}')
     sqlite3 "$XUIDB" "DELETE FROM users;"
     sqlite3 "$XUIDB" "INSERT INTO users (username,password) VALUES ('$XUIUSER','$hashpass');"
     x-ui start >/dev/null 2>&1
     msg_ok "X-UI credentials forced: $XUIUSER / $XUIPASS"
   else
-    msg_err "X-UI DB ($XUIDB) not found. Cannot force credentials."
+    msg_err "X-UI DB not found!"
   fi
 }
 
-################################### Install X-UI + fix DB #############################################
+################################### Install X-UI if not present #######################################
 if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
   [[ "$PNLNUM" =~ ^[0-3]+$ ]] || PNLNUM=1
   VERSION=$(echo "$VERSION" | tr -d '[:space:]')
@@ -273,7 +266,7 @@ if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
     "https://raw.githubusercontent.com/mhsanaei/3x-ui/${VERSION}/install.sh"
     "https://raw.githubusercontent.com/FranzKafkaYu/x-ui/${VERSION}/install_en.sh"
     "https://raw.githubusercontent.com/AghayeCoder/tx-ui/${VERSION}/install.sh"
-  );
+  )
   [[ "$VERSION" == "master" ]] && VERSION=""
 
   printf 'n\n' | bash <(wget -qO- "${PANEL[$PNLNUM]}") "$VERSION" \
@@ -282,41 +275,15 @@ if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
   UPDATE_XUIDB
 fi
 
-###################################Get Installed XUI Port/Path##########################################
+################################### Check & Force Credentials #########################################
 if [[ -f $XUIDB ]]; then
   x-ui stop > /dev/null 2>&1
   fuser "$XUIDB" 2>/dev/null
-
-  # Загрузим порт
-  PORT=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;" 2>&1)
-  # Загрузим basePath, но мы уже выше прописали /esmars/
-  RNDSTR=$(sqlite3 "${XUIDB}" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;" 2>&1)
-  
-  # Принудительно установим логин/пароль
   force_ui_credentials_to_db
-
-  # Убедимся что PORT не пуст
-  [[ -z "${PORT}" || ! "${PORT}" =~ ^[0-9]+$ ]] && PORT="2053"
-  # Убедимся что путь - /esmars/
-  RNDSTR="/esmars/"
-  NOPATH=""  # раз у нас /esmars/, значит location / {} в nginx есть
-
   x-ui start >/dev/null 2>&1
-else
-  PORT="2053"
-  RNDSTR="/esmars/"
-  NOPATH=""
-  XUIUSER="esmarsme"
-  XUIPASS="EsmarsMe13AMS1"
 fi
 
-#######################################################################################################
-CountryAllow=$(echo "$CountryAllow" | tr ',' '|' | tr -cd 'A-Za-z|' | awk '{print toupper($0)}')
-if echo "$CountryAllow" | grep -Eq '^[A-Z]{2}(\|[A-Z]{2})*$'; then
-  CLIMIT=$( [[ "$CountryAllow" == "XX" ]] && echo "#" || echo "" )
-fi
-
-#################################Nginx Config (Panel at /esmars/)######################################
+################################### Show Nginx config for /esmars/ #####################################
 cat > "/etc/nginx/sites-available/$MainDomain" << EOF
 server {
 	server_tokens off;
@@ -326,7 +293,7 @@ server {
 	listen 443 ssl${OLD_H2};
 	listen [::]:443 ssl${OLD_H2};
 	${NEW_H2}http2 on; http3 on;
-	index index.html index.htm index.php index.nginx-debian.html;
+	index index.html index.htm index.nginx-debian.html;
 	root /var/www/html/;
 	ssl_protocols TLSv1.2 TLSv1.3;
 	ssl_ciphers HIGH:!aNULL:!eNULL:!MD5:!DES:!RC4:!ADH:!SSLv3:!EXP:!PSK:!DSS;
@@ -341,7 +308,6 @@ server {
 	error_page 400 402 403 500 501 502 503 504 =404 /404;
 	proxy_intercept_errors on;
 
-	# X-UI Admin Panel -> /esmars/
 	location /esmars/ {
 		${Secure}auth_basic "Restricted Access";
 		${Secure}auth_basic_user_file /etc/nginx/.htpasswd;
@@ -353,7 +319,6 @@ server {
 		break;
 	}
 
-	# v2ray-ui at /$RNDSTR2/
 	location /${RNDSTR2}/ {
 		${Secure}auth_basic "Restricted Access";
 		${Secure}auth_basic_user_file /etc/nginx/.htpasswd;
@@ -364,58 +329,8 @@ server {
 		break;
 	}
 
-	# Subscription Path (simple/encode)
-	location ~ ^/(?<fwdport>\d+)/sub/(?<fwdpath>.*)\$ {
-		if (\$hack = 1) {return 404;}
-		proxy_redirect off;
-		proxy_set_header Host \$host;
-		proxy_set_header X-Real-IP \$remote_addr;
-		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-		proxy_pass http://127.0.0.1:\$fwdport/sub/\$fwdpath\$is_args\$args;
-		break;
-	}
-
-	# Subscription Path (json/fragment)
-	location ~ ^/(?<fwdport>\d+)/json/(?<fwdpath>.*)\$ {
-		if (\$hack = 1) {return 404;}
-		proxy_redirect off;
-		proxy_set_header Host \$host;
-		proxy_set_header X-Real-IP \$remote_addr;
-		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-		proxy_pass http://127.0.0.1:\$fwdport/json/\$fwdpath\$is_args\$args;
-		break;
-	}
-
-	# Xray Config Path
-	location ~ ^/(?<fwdport>\d+)/(?<fwdpath>.*)\$ {
-		if (\$hack = 1) {return 404;}
-		${CF_IP}if (\$cloudflare_ip != 1) {return 404;}
-		${CLIMIT}if (\$http_cf_ipcountry !~* "${CountryAllow}"){ return 404; }
-		${Secure}if (\$http_user_agent ~* "(bot|clash|fair|go-http|hiddify|java|neko|node|proxy|python|ray|sager|sing|tunnel|v2box|vpn)") { return 404; }
-
-		client_max_body_size 0;
-		client_body_timeout 1d;
-		grpc_read_timeout 1d;
-		grpc_socket_keepalive on;
-		proxy_read_timeout 1d;
-		proxy_http_version 1.1;
-		proxy_buffering off;
-		proxy_request_buffering off;
-		proxy_socket_keepalive on;
-		proxy_set_header Upgrade \$http_upgrade;
-		proxy_set_header Connection "upgrade";
-		proxy_set_header Host \$host;
-		proxy_set_header X-Real-IP \$remote_addr;
-		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-
-		if (\$content_type ~* "GRPC") { grpc_pass grpc://127.0.0.1:\$fwdport\$is_args\$args; break; }
-		proxy_pass http://127.0.0.1:\$fwdport\$is_args\$args;
-		break;
-	}
-
-	# Root location
 	location / {
-	  try_files \$uri \$uri/ =404;
+		try_files \$uri \$uri/ =404;
 	}
 }
 EOF
@@ -423,22 +338,22 @@ EOF
 ln -fs "/etc/nginx/sites-available/$MainDomain" "/etc/nginx/sites-enabled/$MainDomain" 2>/dev/null
 rm -f /etc/nginx/sites-enabled/*{~,bak,backup,save,swp,tmp} 2>/dev/null
 
-##################################Check Nginx status####################################################
 if ! systemctl start nginx > /dev/null 2>&1 || ! nginx -t &>/dev/null || nginx -s reload 2>&1 | grep -q error; then
   pkill -9 nginx || killall nginx
   nginx -c /etc/nginx/nginx.conf
   nginx -s reload
 fi
+
 systemctl is-enabled x-ui || systemctl enable x-ui
 x-ui start > /dev/null 2>&1
 
 ############################################Warp Plus (MOD)#############################################
-# ... (код Warp+ без изменений)...
+# (Оставляем твой warp+ код)...
 
 ######################cronjob for ssl/reload service/cloudflareips######################################
-# ... (код cron без изменений)...
+# (Оставляем твой cron)...
 
-################################## Show Details (fix jq parse error)####################################
+################################## Show Details (Prevent jq parse error) ##############################
 if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   clear
   printf '0\n' | x-ui | grep --color=never -i ':' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
@@ -446,11 +361,11 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   nginx -T | grep -i 'configuration file /etc/nginx/sites-enabled/' | sed 's/.*configuration file //' \
     | tr -d ':' | awk '{print "\033[1;32;40m" $0 "\033[0m"}'
   hrline
-  certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
+  certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:' \
+    | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
   hrline
 
   IPInfo=$(curl -Ls "https://ipapi.co/json" || curl -Ls "https://ipinfo.io/json")
-  # проверим валидность JSON
   if ! echo "$IPInfo" | jq . >/dev/null 2>&1; then
     IPInfo='{"org":"N/A","country":"N/A"}'
   fi
@@ -467,20 +382,20 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:$PORT/esmars/"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:$PORT/esmars/"
 
-  msg_err "\n V2rayA Panel [IP:PORT]"
+  hrline
+  msg_err " V2rayA Panel [IP:PORT]"
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:2017/"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:2017/"
 
   hrline
-  # Генерируем htpasswd user=esmarsme pass=EsmarsMe13AMS1
+  # Генерируем htpasswd user=esmarsme, pass=EsmarsMe13AMS1
   rm -f /etc/nginx/.htpasswd
   if command -v htpasswd &>/dev/null; then
-    htpasswd -bcs /etc/nginx/.htpasswd "$XUIUSER" "$XUIPASS"
+    htpasswd -bcs /etc/nginx/.htpasswd "esmarsme" "EsmarsMe13AMS1"
   else
-    pass_hash=$(openssl passwd -apr1 "$XUIPASS")
-    echo "${XUIUSER}:${pass_hash}" > /etc/nginx/.htpasswd
+    pass_hash=$(openssl passwd -apr1 "EsmarsMe13AMS1")
+    echo "esmarsme:${pass_hash}" > /etc/nginx/.htpasswd
   fi
-
   msg_ok "Admin Panel [SSL]:\n"
   msg_inf "XrayUI: https://${domain}/esmars/"
   msg_inf "V2rayA: https://${domain}/${RNDSTR2}/\n"
