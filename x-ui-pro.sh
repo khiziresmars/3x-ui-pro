@@ -24,13 +24,12 @@ RNDSTR="/esmars/"
 # Доп. путь для v2rayA
 RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)")
 
-# Порт x-ui: случайный
+# Случайный порт для x-ui
 while true; do
   PORT=$((RANDOM%30000+30000))
   nc -z 127.0.0.1 "$PORT" &>/dev/null || break
 done
 
-# Случайные "страны" для Warp/Tor
 Random_country=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
 TorRandomCountry=$(echo ATBEBGBRCACHCZDEDKEEESFIFRGBHRHUIEINITJPLVNLNOPLPTRORSSESGSKUAUS | fold -w2 | shuf -n1)
 
@@ -97,30 +96,119 @@ if [[ -n "$ENABLEUFW" ]]; then
   exit 1
 fi
 
-############################## TOR / WARP / RandomHTML / Uninstall etc. ################################
-# (Оставляем твой код без изменений, только убираем epel-release и sqlite для Debian)...
+##############################TOR Change Region Country #################################################
+if [[ -n "$TorCountry" ]]; then
+	TorCountry=$(echo "$TorCountry" | tr '[:lower:]' '[:upper:]')
+	[[ "$TorCountry" == "XX" ]] || [[ ! "$TorCountry" =~ ^[A-Z]{2}$ ]] && TorCountry=$TorRandomCountry
+	TorCountry=$(echo "$TorCountry" | tr '[:upper:]' '[:lower:]')
+	sudo cp -f /etc/tor/torrc /etc/tor/torrc.bak
+	if grep -q "^ExitNodes" /etc/tor/torrc; then
+		sudo sed -i "s/^ExitNodes.*/ExitNodes {$TorCountry}/" /etc/tor/torrc
+	else
+		echo "ExitNodes {$TorCountry}" | sudo tee -a /etc/tor/torrc
+	fi
+	if grep -q "^StrictNodes" /etc/tor/torrc; then
+		sudo sed -i "s/^StrictNodes.*/StrictNodes 1/" /etc/tor/torrc
+	else
+		echo "StrictNodes 1" | sudo tee -a /etc/tor/torrc
+	fi
+	systemctl restart tor
+	msg "\nEnter after 10 seconds:\ncurl --socks5-hostname 127.0.0.1:9050 https://ipapi.co/json/\n"
+	msg_inf "Tor settings changed!"
+	exit 1
+fi
 
-############################## Domain Validations ######################################################
+##############################WARP/Psiphon Change Region Country ########################################
+if [[ -n "$WarpCfonCountry" || -n "$WarpLicKey" || -n "$CleanKeyCfon" ]]; then
+  WarpCfonCountry=$(echo "$WarpCfonCountry" | tr '[:lower:]' '[:upper:]')
+  cfonval=" --cfon --country $WarpCfonCountry"
+  [[ "$WarpCfonCountry" == "XX" ]] && cfonval=" --cfon --country ${Random_country}"
+  [[ "$WarpCfonCountry" =~ ^[A-Z]{2}$ ]] || cfonval=""
+  wrpky=" --key $WarpLicKey";[[ -n "$WarpLicKey" ]] || wrpky=""
+  [[ -n "$CleanKeyCfon" ]] && { cfonval=""; wrpky=""; }
+
+cat > /etc/systemd/system/warp-plus.service << EOF
+[Unit]
+Description=warp-plus service
+After=network.target nss-lookup.target
+
+[Service]
+WorkingDirectory=/etc/warp-plus/
+ExecStart=/etc/warp-plus/warp-plus --scan${cfonval}${wrpky}
+ExecStop=/bin/kill -TERM \$MAINPID
+ExecReload=/bin/kill -HUP \$MAINPID
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  rm -rf ~/.cache/warp-plus
+  service_enable "warp-plus"
+  msg "\nEnter after 10 seconds:\ncurl --socks5-hostname 127.0.0.1:8086 https://ipapi.co/json/\n"
+  msg_inf "warp-plus settings changed!"
+  exit 1
+fi
+
+##############################Random Fake Site###########################################################
+if [[ ${RNDTMPL} == *"y"* ]]; then
+  cd "$HOME" || exit 1
+  if [[ ! -d "randomfakehtml-master" ]]; then
+    wget https://github.com/GFW4Fun/randomfakehtml/archive/refs/heads/master.zip
+    unzip master.zip && rm -f master.zip
+  fi
+  cd randomfakehtml-master || exit 1
+  rm -rf assets ".gitattributes" "README.md" "_config.yml"
+
+  RandomHTML=$(for i in *; do echo "$i"; done | shuf -n1 2>&1)
+  msg_inf "Random template name: ${RandomHTML}"
+
+  if [[ -d "${RandomHTML}" && -d "/var/www/html/" ]]; then
+    rm -rf /var/www/html/*
+    cp -a "${RandomHTML}"/. "/var/www/html/"
+    msg_ok "Template extracted successfully!" && exit 1
+  else
+    msg_err "Extraction error!" && exit 1
+  fi
+fi
+
+##############################Uninstall##################################################################
+if [[ "${UNINSTALL}" == *"y"* ]]; then
+  echo "python3-certbot-nginx nginx nginx-full nginx-core nginx-common nginx-extras tor" \
+    | xargs -n 1 "$Pak" -y remove
+  for service in nginx tor x-ui warp-plus v2raya xray; do
+    systemctl stop "$service" > /dev/null 2>&1
+    systemctl disable "$service" > /dev/null 2>&1
+  done
+  #bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge
+  printf 'n' | bash <(wget -qO- https://github.com/v2rayA/v2rayA-installer/raw/main/uninstaller.sh)
+  rm -rf /etc/warp-plus/ /etc/nginx/sites-enabled/*
+  crontab -l | grep -v "nginx\|systemctl\|x-ui\|v2ray" | crontab -
+  command -v x-ui &> /dev/null && printf 'y\n' | x-ui uninstall
+  clear && msg_ok "Completely Uninstalled!"
+  exit 1
+fi
+
+##############################Domain Validations#########################################################
 while [[ -z $(echo "$domain" | tr -d '[:space:]') ]]; do
-  read -rp $'\e[1;32;40m Enter available subdomain (e.g., sub.domain.tld): \e[0m' domain
+  read -rp $'\e[1;32;40m Enter available subdomain (sub.domain.tld): \e[0m' domain
 done
 domain=$(echo "$domain" | tr -d '[:space:]')
 SubDomain=$(echo "$domain" | sed 's/^[^ ]* \|\..*//g')
 MainDomain=$(echo "$domain" | sed 's/.*\.\([^.]*\..*\)$/\1/')
 
-if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]]; then
+if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]] ; then
 	MainDomain=${domain}
 fi
 
-############################### Install Packages (Debian/Ubuntu) ########################################
+###############################Install Packages (Debian/Ubuntu)#########################################
 $Pak -y update
 for pkg in cronie psmisc unzip curl nginx-full certbot python3-certbot-nginx sqlite3 jq openssl tor tor-geoipdb; do
   dpkg -l "$pkg" &>/dev/null || $Pak -y install "$pkg"
 done
-
 service_enable "nginx" "tor" "cron" "crond"
 
-############################### Stop Nginx + free 80/443 for certbot ###################################
+###############################Get nginx Ver and Stop####################################################
 vercompare() {
   if [ "$1" = "$2" ]; then echo "E"; return; fi
   [ "$(printf "%s\n%s" "$1" "$2" | sort -V | head -n1)" = "$1" ] && echo "L" || echo "G"
@@ -137,7 +225,7 @@ sudo nginx -s stop 2>/dev/null
 sudo systemctl stop nginx 2>/dev/null
 sudo fuser -k 80/tcp 80/udp 443/tcp 443/udp 2>/dev/null
 
-################################## GET SERVER IPv4-6 ####################################################
+##################################GET SERVER IPv4-6######################################################
 IP4_REGEX="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
 IP6_REGEX="([a-f0-9:]+:+)+[a-f0-9]+"
 IP4=$(ip route get 8.8.8.8 2>&1 | grep -Po -- 'src \K\S*')
@@ -154,7 +242,7 @@ if [[ ! -d "/etc/letsencrypt/live/${MainDomain}/" ]]; then
   exit 1
 fi
 
-################################# Nginx config for Cloudflare, SSL, etc. ##############################
+#################################Nginx config for Cloudflare etc.#######################################
 mkdir -p /etc/nginx/sites-{available,enabled} /var/log/nginx /var/www /var/www/html
 rm -rf "/etc/nginx/default.d"
 
@@ -213,9 +301,9 @@ bash "/etc/nginx/cloudflareips.sh" > /dev/null 2>&1
 [[ "${Secure}" == *"yes"* ]] && Secure="" || Secure="#"
 
 ######################################## /webBasePath/ = /esmars/ #####################################
-add_slashes() { echo "/esmars/"; }
+# (Мы жёстко ставим /esmars/)
 
-######################################## Update X-UI DB ###############################################
+########################################Update X-UI DB##############################################
 UPDATE_XUIDB(){
   if [[ -f $XUIDB ]]; then
     x-ui stop > /dev/null 2>&1
@@ -243,11 +331,11 @@ force_ui_credentials_to_db() {
     x-ui start >/dev/null 2>&1
     msg_ok "X-UI credentials forced: $XUIUSER / $XUIPASS"
   else
-    msg_err "X-UI DB not found!"
+    msg_err "X-UI DB ($XUIDB) not found. Cannot force credentials!"
   fi
 }
 
-################################### Install X-UI if not present #######################################
+###################################Install X-UI#########################################################
 if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
   [[ "$PNLNUM" =~ ^[0-3]+$ ]] || PNLNUM=1
   VERSION=$(echo "$VERSION" | tr -d '[:space:]')
@@ -275,7 +363,7 @@ if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
   UPDATE_XUIDB
 fi
 
-################################### Check & Force Credentials #########################################
+###################################Check & Force Credentials###########################################
 if [[ -f $XUIDB ]]; then
   x-ui stop > /dev/null 2>&1
   fuser "$XUIDB" 2>/dev/null
@@ -283,7 +371,7 @@ if [[ -f $XUIDB ]]; then
   x-ui start >/dev/null 2>&1
 fi
 
-################################### Show Nginx config for /esmars/ #####################################
+###################################Nginx Config for /esmars/###########################################
 cat > "/etc/nginx/sites-available/$MainDomain" << EOF
 server {
 	server_tokens off;
@@ -348,28 +436,32 @@ systemctl is-enabled x-ui || systemctl enable x-ui
 x-ui start > /dev/null 2>&1
 
 ############################################Warp Plus (MOD)#############################################
-# (Оставляем твой warp+ код)...
+# (Оставляем твой warp-plus код)...
 
 ######################cronjob for ssl/reload service/cloudflareips######################################
 # (Оставляем твой cron)...
 
-################################## Show Details (Prevent jq parse error) ##############################
+################################## Show Details (Prevent jq parse error)###############################
 if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   clear
+  # Показать x-ui информацию
   printf '0\n' | x-ui | grep --color=never -i ':' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
   hrline
+
   nginx -T | grep -i 'configuration file /etc/nginx/sites-enabled/' | sed 's/.*configuration file //' \
     | tr -d ':' | awk '{print "\033[1;32;40m" $0 "\033[0m"}'
   hrline
-  certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:' \
-    | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
+
+  certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:' | awk '{print "\033[1;37;40m" $0 "\033[0m"}'
   hrline
 
+  # Получим IPInfo с подстраховкой
   IPInfo=$(curl -Ls "https://ipapi.co/json" || curl -Ls "https://ipinfo.io/json")
   if ! echo "$IPInfo" | jq . >/dev/null 2>&1; then
     IPInfo='{"org":"N/A","country":"N/A"}'
   fi
 
+  # OS Info
   OS=$(grep -E '^(NAME|VERSION)=' /etc/*release 2>/dev/null | awk -F= '{printf $2 " "}' | xargs)
   msg "ID: $(cat /etc/machine-id | cksum | awk '{print $1 % 65536}') | IP: ${IP4} | OS: ${OS}"
   msg "Hostname: $(uname -n) | $(echo "${IPInfo}" | jq -r '.org'), $(echo "${IPInfo}" | jq -r '.country')"
@@ -378,17 +470,17 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
     "$(df / | awk 'NR==2 {printf "%.2f", $2 / 1024 / 1024}')"
   hrline
 
-  msg_err  "XrayUI Panel [IP:PORT/PATH]"
+  msg_err "XrayUI Panel [IP:PORT/PATH]"
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:$PORT/esmars/"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:$PORT/esmars/"
 
   hrline
-  msg_err " V2rayA Panel [IP:PORT]"
+  msg_err "V2rayA Panel [IP:PORT]"
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:2017/"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:2017/"
 
   hrline
-  # Генерируем htpasswd user=esmarsme, pass=EsmarsMe13AMS1
+  # Генерируем .htpasswd c user=esmarsme, pass=EsmarsMe13AMS1
   rm -f /etc/nginx/.htpasswd
   if command -v htpasswd &>/dev/null; then
     htpasswd -bcs /etc/nginx/.htpasswd "esmarsme" "EsmarsMe13AMS1"
@@ -396,6 +488,7 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
     pass_hash=$(openssl passwd -apr1 "EsmarsMe13AMS1")
     echo "esmarsme:${pass_hash}" > /etc/nginx/.htpasswd
   fi
+
   msg_ok "Admin Panel [SSL]:\n"
   msg_inf "XrayUI: https://${domain}/esmars/"
   msg_inf "V2rayA: https://${domain}/${RNDSTR2}/\n"
