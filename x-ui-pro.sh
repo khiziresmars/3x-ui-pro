@@ -9,10 +9,10 @@ msg_inf() { echo -e "\e[1;36;40m $1 \e[0m";}
 msg_war() { echo -e "\e[1;33;40m $1 \e[0m";}
 hrline()  { printf '\033[1;35;40m%s\033[0m\n' "$(printf '%*s' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "${1:--}")"; }
 
-echo
+echo; ############## Asciiart.eu@Cyberlarge ################
 msg_inf ' _     _ _     _ _____      _____   ______   _____ '
 msg_inf '  \___/  |     |   |   ___ |_____] |_____/  |     |'
-msg_inf ' _/   \_ |_____| __|__     |       |     \_ |_____|'
+msg_inf ' _/   \_ |_____| __|__     |       |     \_ |_____|';
 hrline
 
 ################################## Random Port and Path ##############################################
@@ -20,8 +20,8 @@ mkdir -p "${HOME}/.cache"
 Pak=$(command -v apt || echo dnf)
 
 # Путь к панели — случайный
-RNDSTR=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)")
-RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)")
+RNDSTR=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)");
+RNDSTR2=$(tr -dc A-Za-z0-9 </dev/urandom | head -c "$(shuf -i 6-12 -n1)");
 while true; do
   PORT=$((RANDOM%30000+30000))
   nc -z 127.0.0.1 "$PORT" &>/dev/null || break
@@ -49,9 +49,9 @@ ENABLEUFW=""
 VERSION="last"
 CountryAllow="XX"
 
-# Логин/Пароль для панели
-XUIUSER="admin"
-XUIPASS="admin"
+# Логин/Пароль панели
+XUIUSER="admin"     # Можно изменить
+XUIPASS="admin"     # Можно изменить
 
 ################################ Get arguments ########################################################
 while [ "$#" -gt 0 ]; do
@@ -121,10 +121,10 @@ fi
 ############################## WARP/Psiphon Change Region Country #####################################
 if [[ -n "$WarpCfonCountry" || -n "$WarpLicKey" || -n "$CleanKeyCfon" ]]; then
   WarpCfonCountry=$(echo "$WarpCfonCountry" | tr '[:lower:]' '[:upper:]')
-  cfonval=" --cfon --country $WarpCfonCountry"
+  cfonval=" --cfon --country $WarpCfonCountry";
   [[ "$WarpCfonCountry" == "XX" ]] && cfonval=" --cfon --country ${Random_country}"
-  [[ "$WarpCfonCountry" =~ ^[A-Z]{2}$ ]] || cfonval=""
-  wrpky=" --key $WarpLicKey";[[ -n "$WarpLicKey" ]] || wrpky=""
+  [[ "$WarpCfonCountry" =~ ^[A-Z]{2}$ ]] || cfonval="";
+  wrpky=" --key $WarpLicKey";[[ -n "$WarpLicKey" ]] || wrpky="";
   [[ -n "$CleanKeyCfon" ]] && { cfonval=""; wrpky=""; }
 
   cat > /etc/systemd/system/warp-plus.service << EOF
@@ -142,7 +142,6 @@ Restart=on-abort
 [Install]
 WantedBy=multi-user.target
 EOF
-
   rm -rf ~/.cache/warp-plus
   service_enable "warp-plus"
   msg "\nEnter after 10 seconds:\ncurl --socks5-hostname 127.0.0.1:8086 https://ipapi.co/json/\n"
@@ -188,34 +187,28 @@ if [[ "${UNINSTALL}" == *"y"* ]]; then
   clear && msg_ok "Completely Uninstalled!" && exit 1
 fi
 
-############################## Domain Validations (Main for X-UI) ######################################
+############################## Domain Validations ######################################################
 while [[ -z $(echo "$domain" | tr -d '[:space:]') ]]; do
-  read -rp $'\e[1;32;40m Enter main domain (panel.example.com): \e[0m' domain
+  read -rp $'\e[1;32;40m Enter available subdomain (sub.domain.tld): \e[0m' domain
 done
 domain=$(echo "$domain" | tr -d '[:space:]')
-
-echo
-read -rp $'\e[1;32;40m Enter REALITY domain (reality.example.com) [optional, Enter to skip]: \e[0m' reality_domain_input
-reality_domain=$(echo "$reality_domain_input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-
 SubDomain=$(echo "$domain" | sed 's/^[^ ]* \|\..*//g')
 MainDomain=$(echo "$domain" | sed 's/.*\.\([^.]*\..*\)$/\1/')
 
-# Если SubDomain.MainDomain != domain -> значит domain без sub?
-if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]]; then
+if [[ "${SubDomain}.${MainDomain}" != "${domain}" ]] ; then
 	MainDomain=${domain}
 fi
 
 ############################### Install Packages ########################################################
-"$Pak" -y update
-for pkg in epel-release cronie psmisc unzip curl nginx nginx-full certbot python3-certbot-nginx \
-           sqlite sqlite3 jq openssl tor tor-geoipdb; do
-  dpkg -l "$pkg" &> /dev/null || rpm -q "$pkg" &> /dev/null || "$Pak" -y install "$pkg"
+# Для Ubuntu/Debian:
+$Pak -y update
+for pkg in cronie psmisc unzip curl nginx-full certbot python3-certbot-nginx sqlite3 jq openssl tor tor-geoipdb; do
+    dpkg -l "$pkg" &>/dev/null || $Pak -y install "$pkg"
 done
 
 service_enable "nginx" "tor" "cron" "crond"
 
-############################### Stop Nginx for SSL on main domain ######################################
+############################### Get nginx Ver and Stop ##################################################
 vercompare() {
   if [ "$1" = "$2" ]; then echo "E"; return; fi
   [ "$(printf "%s\n%s" "$1" "$2" | sort -V | head -n1)" = "$1" ] && echo "L" || echo "G";
@@ -223,9 +216,9 @@ vercompare() {
 nginx_ver=$(nginx -v 2>&1 | awk -F/ '{print $2}');
 ver_compare=$(vercompare "$nginx_ver" "1.25.1");
 if [ "$ver_compare" = "L" ]; then
-  OLD_H2=" http2"; NEW_H2="#";
+  OLD_H2=" http2";NEW_H2="#";
 else
-  OLD_H2=""; NEW_H2="";
+  OLD_H2="";NEW_H2="";
 fi
 
 sudo nginx -s stop 2>/dev/null
@@ -237,33 +230,16 @@ IP4_REGEX="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
 IP6_REGEX="([a-f0-9:]+:+)+[a-f0-9]+"
 IP4=$(ip route get 8.8.8.8 2>&1 | grep -Po -- 'src \K\S*')
 IP6=$(ip route get 2620:fe::fe 2>&1 | grep -Po -- 'src \K\S*')
-[[ $IP4 =~ $IP4_REGEX ]] || IP4=$(curl -s ipv4.icanhazip.com)
-[[ $IP6 =~ $IP6_REGEX ]] || IP6=$(curl -s ipv6.icanhazip.com)
+[[ $IP4 =~ $IP4_REGEX ]] || IP4=$(curl -s ipv4.icanhazip.com);
+[[ $IP6 =~ $IP6_REGEX ]] || IP6=$(curl -s ipv6.icanhazip.com);
 
-############################## Install SSL for main domain #############################################
+############################## Install SSL ##############################################################
 certbot certonly --standalone --non-interactive --force-renewal --agree-tos \
   --register-unsafely-without-email --cert-name "$MainDomain" -d "$domain"
 if [[ ! -d "/etc/letsencrypt/live/${MainDomain}/" ]]; then
   systemctl start nginx >/dev/null 2>&1
-  msg_err "$MainDomain SSL failed! Check Domain/IP! Exceeded limit? Try another domain or VPS!"
+  msg_err "$MainDomain SSL failed! Check Domain/IP! Exceeded limit!? Try another domain or VPS!"
   exit 1
-fi
-
-############################## If user gave reality_domain, SSL for it too #############################
-reality_enable="no"
-if [[ -n "$reality_domain" ]]; then
-   reality_enable="yes"
-   # Сгенерить SSL для reality_domain (в отдельную cert name)
-   sudo systemctl stop nginx 2>/dev/null
-   sudo fuser -k 80/tcp 443/tcp 2>/dev/null
-   certbot certonly --standalone --non-interactive --force-renewal --agree-tos \
-     --register-unsafely-without-email --cert-name "$reality_domain" -d "$reality_domain"
-   if [[ ! -d "/etc/letsencrypt/live/${reality_domain}/" ]]; then
-     msg_err "REALITY domain SSL failed! Check Domain/IP!"
-     reality_enable="no"
-   else
-     msg_ok "REALITY domain $reality_domain SSL obtained!"
-   fi
 fi
 
 ################################# Access to configs only with cloudflare ###############################
@@ -307,12 +283,13 @@ CLOUDFLARE_REAL_IPS_PATH=/etc/nginx/conf.d/cloudflare_real_ips.conf
 CLOUDFLARE_WHITELIST_PATH=/etc/nginx/conf.d/cloudflare_whitelist.conf
 
 echo "geo \$realip_remote_addr \$cloudflare_ip {
-  default 0;" >> $CLOUDFLARE_WHITELIST_PATH
+	default 0;" >> $CLOUDFLARE_WHITELIST_PATH
 
 for type in v4 v6; do
-  for ip in `curl -s https://www.cloudflare.com/ips-$type`; do
-    echo "set_real_ip_from $ip;" >> $CLOUDFLARE_REAL_IPS_PATH
-    echo "  $ip 1;" >> $CLOUDFLARE_WHITELIST_PATH
+  echo "# IP$type"
+  for ip in `curl https://www.cloudflare.com/ips-$type`; do
+    echo "set_real_ip_from $ip;" >> $CLOUDFLARE_REAL_IPS_PATH;
+    echo "	$ip 1;" >> $CLOUDFLARE_WHITELIST_PATH;
   done
 done
 
@@ -336,7 +313,6 @@ UPDATE_XUIDB(){
   if [[ -f $XUIDB ]]; then
     x-ui stop > /dev/null 2>&1
     fuser "$XUIDB" 2>/dev/null
-    local RNDSTRSLASH
     RNDSTRSLASH=$(add_slashes "$RNDSTR")
     sqlite3 "$XUIDB" << EOF
 DELETE FROM 'settings' WHERE key IN ('webPort','webCertFile','webKeyFile','webBasePath');
@@ -384,7 +360,7 @@ if ! systemctl is-active --quiet x-ui || ! command -v x-ui &> /dev/null; then
     "https://raw.githubusercontent.com/mhsanaei/3x-ui/${VERSION}/install.sh"
     "https://raw.githubusercontent.com/FranzKafkaYu/x-ui/${VERSION}/install_en.sh"
     "https://raw.githubusercontent.com/AghayeCoder/tx-ui/${VERSION}/install.sh"
-  )
+  );
   [[ "$VERSION" == "master" ]] && VERSION=""
 
   printf 'n\n' | bash <(wget -qO- "${PANEL[$PNLNUM]}") "$VERSION" \
@@ -404,8 +380,11 @@ if [[ -f $XUIDB ]]; then
 
   RNDSTR=$(add_slashes "$RNDSTR" | tr -d '[:space:]')
   [[ "$RNDSTR" == "/" ]] && NOPATH="#"
-  [[ -z "$PORT" || ! "$PORT" =~ ^-?[0-9]+$ ]] && PORT="2053"
+  if [[ -z "${PORT}" ]] || ! [[ "${PORT}" =~ ^-?[0-9]+$ ]]; then
+	PORT="2053"
+  fi
 
+  # Принудительно прописать Логин/Пароль, если не admin/admin или нужно своё
   force_ui_credentials_to_db
 else
   PORT="2053"
@@ -417,9 +396,11 @@ fi
 
 #######################################################################################################
 CountryAllow=$(echo "$CountryAllow" | tr ',' '|' | tr -cd 'A-Za-z|' | awk '{print toupper($0)}')
-[[ "$CountryAllow" =~ ^[A-Z]{2}(\|[A-Z]{2})*$ ]] && CLIMIT=$( [[ "$CountryAllow" == "XX" ]] && echo "#" || echo "" )
+if echo "$CountryAllow" | grep -Eq '^[A-Z]{2}(\|[A-Z]{2})*$'; then
+  CLIMIT=$( [[ "$CountryAllow" == "XX" ]] && echo "#" || echo "" )
+fi
 
-#################################Nginx Config for main domain#########################################
+################################# Nginx Config ########################################################
 cat > "/etc/nginx/sites-available/$MainDomain" << EOF
 server {
 	server_tokens off;
@@ -440,7 +421,7 @@ server {
 	if (\$scheme ~* https) {set \$safe 1;}
 	if (\$ssl_server_name !~* ^(.+\.)?$MainDomain\$ ) {set \$safe "\${safe}0"; }
 	if (\$safe = 10){return 444;}
-	if (\$request_uri ~ "(\"|'|\`|~|,|:|--|;|%|\\\$|&&|\?\?|0x00|0X00|\||\\|\{|\}|<|>|\.\.\.|\.\.\/|\/\/\/)"){set \$hack 1;}
+	if (\$request_uri ~ "(\"|'|\`|~|,|:|--|;|%|\\\$|&&|\?\?|0x00|0X00|\||\\|\{|\}|$begin:math:display$|$end:math:display$|<|>|\.\.\.|\.\.\/|\/\/\/)"){set \$hack 1;}
 	error_page 400 402 403 500 501 502 503 504 =404 /404;
 	proxy_intercept_errors on;
 
@@ -522,51 +503,15 @@ server {
 }
 EOF
 
-ln -fs "/etc/nginx/sites-available/$MainDomain" "/etc/nginx/sites-enabled/$MainDomain"
-
-###################### Reality domain block (SSL + fallback -> Xray inbound) ##########################
-if [[ -n "$reality_domain" && -d "/etc/letsencrypt/live/${reality_domain}/" ]]; then
-cat > "/etc/nginx/sites-available/$reality_domain" << EOF
-server {
-	server_tokens off;
-	server_name $reality_domain *.$reality_domain;
-	listen 80;
-	listen [::]:80;
-	listen 443 ssl${OLD_H2};
-	listen [::]:443 ssl${OLD_H2};
-	${NEW_H2}http2 on; http3 on;
-	index index.html index.htm;
-	root /var/www/html/;
-	ssl_protocols TLSv1.2 TLSv1.3;
-	ssl_ciphers HIGH:!aNULL:!eNULL:!MD5:!DES:!RC4:!ADH:!SSLv3:!EXP:!PSK:!DSS;
-	ssl_certificate /etc/letsencrypt/live/$reality_domain/fullchain.pem;
-	ssl_certificate_key /etc/letsencrypt/live/$reality_domain/privkey.pem;
-
-	if (\$host !~* ^(.+\.)?$reality_domain\$ ){return 444;}
-	error_page 400 402 403 500 501 502 503 504 =404 /404;
-	proxy_intercept_errors on;
-
-	location / {
-	  # Proxy/fallback to Xray's REALITY inbound (30004), if we want Nginx in front
-	  # Alternatively, real reality inbound often bypasses Nginx and listens directly on 443
-	  # Но по просьбе: "сразу же настраивал всё через nginx"
-	  proxy_pass http://127.0.0.1:30004/;
-	  proxy_http_version 1.1;
-	  proxy_set_header Host \$host;
-	  proxy_set_header X-Real-IP \$remote_addr;
-	  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-	  proxy_set_header X-Forwarded-Proto \$scheme;
-	  proxy_redirect off;
-	}
-}
-EOF
-  ln -fs "/etc/nginx/sites-available/$reality_domain" "/etc/nginx/sites-enabled/$reality_domain"
+if [[ -f "/etc/nginx/sites-available/$MainDomain" ]]; then
+  unlink "/etc/nginx/sites-enabled/default" >/dev/null 2>&1
+  rm -f "/etc/nginx/sites-enabled/default" "/etc/nginx/sites-available/default"
+  ln -fs "/etc/nginx/sites-available/$MainDomain" "/etc/nginx/sites-enabled/" 2>/dev/null
 fi
-
 rm -f /etc/nginx/sites-enabled/*{~,bak,backup,save,swp,tmp} 2>/dev/null
 
-################################## Start/Reload Nginx #################################################
-if ! systemctl start nginx > /dev/null 2>&1 || ! nginx -t &>/dev/null || ! nginx -s reload &>/dev/null; then
+################################## Check Nginx status #################################################
+if ! systemctl start nginx > /dev/null 2>&1 || ! nginx -t &>/dev/null || nginx -s reload 2>&1 | grep -q error; then
   pkill -9 nginx || killall -9 nginx
   nginx -c /etc/nginx/nginx.conf
   nginx -s reload
@@ -584,15 +529,15 @@ chmod 777 /etc/warp-plus/
 warpPlusDL="https://github.com/bepass-org/warp-plus/releases/latest/download/warp-plus_linux"
 
 case "$(uname -m | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
-  x86_64|amd64) wppDL="${warpPlusDL}-amd64.zip" ;;
-  aarch64|arm64) wppDL="${warpPlusDL}-arm64.zip" ;;
-  armv*) wppDL="${warpPlusDL}-arm7.zip" ;;
-  mips) wppDL="${warpPlusDL}-mips.zip" ;;
-  mips64) wppDL="${warpPlusDL}-mips64.zip" ;;
-  mips64le) wppDL="${warpPlusDL}-mips64le.zip" ;;
-  mipsle*) wppDL="${warpPlusDL}-mipsle.zip" ;;
-  riscv*) wppDL="${warpPlusDL}-riscv64.zip" ;;
-  *) wppDL="${warpPlusDL}-amd64.zip" ;;
+	x86_64|amd64) wppDL="${warpPlusDL}-amd64.zip" ;;
+	aarch64|arm64) wppDL="${warpPlusDL}-arm64.zip" ;;
+	armv*) wppDL="${warpPlusDL}-arm7.zip" ;;
+	mips) wppDL="${warpPlusDL}-mips.zip" ;;
+	mips64) wppDL="${warpPlusDL}-mips64.zip" ;;
+	mips64le) wppDL="${warpPlusDL}-mips64le.zip" ;;
+	mipsle*) wppDL="${warpPlusDL}-mipsle.zip" ;;
+	riscv*) wppDL="${warpPlusDL}-riscv64.zip" ;;
+	*) wppDL="${warpPlusDL}-amd64.zip" ;;
 esac
 
 wget --quiet -P /etc/warp-plus/ "${wppDL}" || curl --output-dir /etc/warp-plus/ -LOs "${wppDL}"
@@ -630,43 +575,6 @@ crontab -l 2>/dev/null | grep -qE "x-ui" || {
   (crontab -l 2>/dev/null; printf "%s\n" "${tasks[@]}") | crontab -
 }
 
-################################### Autogen inbound for REALITY ########################################
-if [[ -n "$reality_domain" && -d "/etc/letsencrypt/live/${reality_domain}/" ]]; then
-  XRAY_BIN=$(command -v xray || echo /usr/local/bin/xray)
-  if [[ -x "$XRAY_BIN" ]]; then
-    XRAY_KEYS=$("$XRAY_BIN" x25519)
-    reality_priv_key=$(echo "$XRAY_KEYS" | grep "Private key:" | awk '{print $3}')
-    reality_pub_key=$(echo "$XRAY_KEYS" | grep "Public key:" | awk '{print $3}')
-    reality_short_id=$(openssl rand -hex 4)
-    UUID_REALITY=$("$XRAY_BIN" uuid)
-    FLOW="xtls-rprx-vision"
-
-    # Создаём inbound на порт 30004
-    sqlite3 "$XUIDB" <<EOF
-INSERT INTO inbounds (user_id, up, down, total, remark, enable, expiry_time, listen, port, protocol, settings, stream_settings, tag, sniffing)
-VALUES (
-1, 0, 0, 0,
-'reality-auto-$reality_domain',
-1, 0, NULL, 30004,
-'vless',
-'{"clients":[{"id":"$UUID_REALITY","flow":"$FLOW","email":"auto@reality"}],"decryption":"none","fallbacks":[]}',
-'{"network":"tcp","security":"reality","realitySettings":{"show":false,"dest":"$reality_domain:443","xver":0,"serverNames":["$reality_domain"],"privateKey":"$reality_priv_key","publicKey":"$reality_pub_key","shortIds":["$reality_short_id"],"spiderX":"/"}}',
-'reality-inbound',
-'{"enabled":true,"destOverride":["http","tls","quic"]}'
-);
-EOF
-
-    msg_ok "VLESS REALITY inbound создан (port=30004) для домена: $reality_domain"
-    msg_inf "Приватный ключ: $reality_priv_key"
-    msg_inf "Публичный ключ: $reality_pub_key"
-    msg_inf "ShortID: $reality_short_id"
-    msg_inf "UUID: $UUID_REALITY"
-    msg_inf "SNI для входа: $reality_domain:443"
-  else
-    msg_war "Не найден xray, автогенерация REALITY inbound пропущена!"
-  fi
-fi
-
 ################################## Show Details ########################################################
 if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   clear
@@ -689,7 +597,7 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:$PORT$RNDSTR"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:$PORT$RNDSTR"
 
-  msg_err "\nV2rayA Panel [IP:PORT]"
+  msg_err "\n V2rayA Panel [IP:PORT]"
   [[ -n "$IP4" && "$IP4" =~ $IP4_REGEX ]] && msg_inf "IPv4: http://$IP4:2017/"
   [[ -n "$IP6" && "$IP6" =~ $IP6_REGEX ]] && msg_inf "IPv6: http://[$IP6]:2017/"
 
@@ -699,12 +607,6 @@ if systemctl is-active --quiet x-ui || command -v x-ui &> /dev/null; then
   msg_inf "XrayUI: https://${domain}${RNDSTR}"
   msg_inf "V2rayA: https://${domain}/${RNDSTR2}/\n"
   msg "Username: $XUIUSER\n Password: $XUIPASS"
-
-  if [[ -n "$reality_domain" && -d "/etc/letsencrypt/live/${reality_domain}/" ]]; then
-    msg_ok "\nREALITY domain configured: https://${reality_domain}/"
-    msg_inf "Inbound on port 30004 (VLESS REALITY)."
-  fi
-
   hrline
   msg_war "Note: Save This Screen!"
 else
